@@ -1,138 +1,270 @@
-# Issue Downloader 🔽
+# Issuu Document Downloader
 
-An Issuu document downloader developed in Node.js.
+A powerful Node.js application for automatically downloading Issuu documents with intelligent caching, scheduling, and a RESTful API.
 
-## ✨ Features
+## 🚀 Features
 
-- 📄 Downloads individual Issuu documents as PDF
-- 🚀 Simple command-line interface
-- ⚡ Fast and efficient
-- 🔄 Conversion progress monitoring
-- 📁 Automatic organization into `downloads` folder
-- 🛡️ Robust error handling
+- **Automatic Downloads**: Downloads Issuu documents in PDF format automatically
+- **Smart Caching**: Maintains the latest document in cache for instant access
+- **RESTful API**: Full-featured API for managing downloads and cache
+- **Intelligent Scheduling**: Weekly downloads every Wednesday at 9:00 AM
+- **Daily Monitoring**: Checks for new issues daily at 10:00 AM
+- **CLI Interface**: Command-line interface for direct usage
+- **Automatic Cleanup**: Removes old files when new issues are available
 
-## 🚀 Installation
+## 📋 Requirements
 
-### Requirements
 - Node.js 12.0.0 or higher
+- Internet connection for Issuu access
+- Sufficient disk space for PDF storage
 
-### Local Installation
-```bash
-# Clone or download the project
-cd issue-downloader
+## 🛠️ Installation
 
-# The script is ready to use, no additional dependencies required
-```
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd node-issue-downloader
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Start the server**
+   ```bash
+   npm start
+   ```
+
+The server will start at `http://localhost:3000`
 
 ## 📖 Usage
 
-### Basic Command
+### API Server
+
+Start the API server with automatic scheduling:
+
 ```bash
-node app.js <ISSUU_URL>
+npm start
 ```
 
-### Examples
+#### Available Endpoints
 
-#### Download Issue 296
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/latest` | Get information about the latest issue |
+| `GET` | `/api/download/latest` | Download the latest issue directly |
+| `GET` | `/api/cached-file` | Get the cached file for instant download |
+| `GET` | `/api/status/:issueNumber` | Check download status for a specific issue |
+| `GET` | `/api/downloads` | List all downloaded issues |
+| `GET` | `/downloads/:filename` | Download a specific file from downloads folder |
+| `GET` | `/cache/:filename` | Download a specific file from cache |
+
+#### Example API Usage
+
+**Get latest issue information:**
 ```bash
-node app.js https://issuu.com/thebpview/docs/issue_296
+curl http://localhost:3000/api/latest
 ```
 
-#### Download with Custom Name
+**Download latest issue:**
 ```bash
-node app.js https://issuu.com/thebpview/docs/issue_296 "The Boro Park View - Issue 296"
+curl -O http://localhost:3000/api/download/latest
 ```
 
-#### Use as Executable
+**Get cached file directly:**
 ```bash
-# Make executable (one time only)
-chmod +x app.js
-
-# Run directly
-./app.js https://issuu.com/thebpview/docs/issue_296
+curl -O http://localhost:3000/api/cached-file
 ```
 
-### Available npm Scripts
-```bash
-# Run with npm
-npm start https://issuu.com/thebpview/docs/issue_296
+### Command Line Interface
 
-# Run predefined test
-npm test
+**Download a specific document:**
+```bash
+npm run cli <ISSUU_URL> [custom_name]
+```
+
+**Example:**
+```bash
+npm run cli https://issuu.com/thebpview/docs/issue_297 "Issue 297 Custom Name"
+```
+
+**Download latest available issue:**
+```bash
+npm run download-latest
+```
+
+## ⏰ Scheduling System
+
+The application includes an intelligent scheduling system:
+
+- **Weekly Downloads**: Every Wednesday at 9:00 AM
+- **Daily Monitoring**: Every day at 10:00 AM
+- **Automatic Cache Updates**: New issues are automatically cached
+- **Smart Cleanup**: Old files are removed when new ones are available
+
+### Schedule Configuration
+
+You can modify the scheduling in `scheduler.js`:
+
+```javascript
+// Weekly download (Wednesday at 9:00 AM)
+cron.schedule('0 9 * * 3', async () => {
+    await this.downloadLatestIssue();
+});
+
+// Daily check (10:00 AM)
+cron.schedule('0 10 * * *', async () => {
+    // Check for new issues
+});
+```
+
+## 🗄️ Cache System
+
+The cache system provides instant access to the latest document:
+
+- **Single File Storage**: Only the latest issue is kept in cache
+- **Automatic Updates**: Cache is updated when new issues are available
+- **Fast Access**: Cached files are served instantly via `/api/cached-file`
+- **Metadata Tracking**: Tracks issue numbers and cache timestamps
+
+### Cache Structure
+
+```
+cache/
+├── latest_issue_297.pdf    # Latest cached issue
+└── metadata.json           # Cache metadata
 ```
 
 ## 📁 File Structure
 
 ```
-issue-downloader/
-├── app.js          # Main script
-├── package.json    # Project configuration
-├── README.md       # This file
-└── downloads/      # Folder where PDFs are saved (automatically created)
+node-issue-downloader/
+├── app.js                  # Main downloader class
+├── api.js                  # Express API server
+├── server.js               # Server entry point
+├── issueTracker.js         # Issue detection logic
+├── scheduler.js            # Download scheduling
+├── cacheManager.js         # Cache management
+├── package.json            # Dependencies and scripts
+├── downloads/              # Downloaded PDFs
+├── cache/                  # Cached latest issue
+└── logs/                   # Download logs
 ```
 
-## 🔧 How it Works
+## 🔧 Configuration
 
-1. **URL Submission**: The script sends the Issuu document URL to the conversion API
-2. **Processing**: The server converts the document to PDF
-3. **Monitoring**: Conversion progress is checked every 10 seconds
-4. **Download**: Once completed, the PDF is downloaded to the `downloads` folder
-5. **Verification**: File size and integrity are confirmed
+### Environment Variables
 
-## 📋 Supported URL Formats
+- `PORT`: Server port (default: 3000)
 
-✅ **Valid URLs:**
-- `https://issuu.com/user/docs/document`
-- `https://www.issuu.com/user/docs/document`
+### Customization
 
-❌ **Invalid URLs:**
-- URLs not from issuu.com
-- URLs with additional parameters
+You can customize various aspects:
 
-## 🎯 Example Output
+- **Download Directory**: Modify `outputDir` in `app.js`
+- **Cache Directory**: Modify `cacheDir` in `cacheManager.js`
+- **Schedule Times**: Modify cron expressions in `scheduler.js`
+- **API Endpoints**: Add new routes in `api.js`
 
-```
-🔽 Issuu Document Downloader
-=====================================
+## 📊 API Response Examples
 
-📄 Document: issue 296
-💾 Output File: downloads/issue 296.pdf
-🔄 Starting conversion for: https://issuu.com/thebpview/docs/issue_296
-📋 Server Response: { id: '68298', status: 'created', progress: 0 }
-⏳ Waiting for processing (ID: 68298)...
-📊 Status: processing - Progress: 45%
-📊 Status: processing - Progress: 78%
-📊 Status: succeeded - Progress: 100%
-⬇️  Downloading PDF from: https://pdf.img2pdf.net/download/...
-✅ Download complete!
-📊 Size: 141.23 MB
-
-🎉 Download successful! Check the "downloads" folder.
+### Latest Issue Information
+```json
+{
+  "issueNumber": 297,
+  "issueUrl": "https://issuu.com/thebpview/docs/issue_297",
+  "isDownloaded": true,
+  "downloadUrl": "/cache/latest_issue_297.pdf"
+}
 ```
 
-## 🛠️ Troubleshooting
+### Download Status
+```json
+{
+  "issueNumber": 297,
+  "status": "cached",
+  "fileSize": 148123456,
+  "fileSizeMB": "141.25",
+  "downloadUrl": "/cache/latest_issue_297.pdf",
+  "cachedAt": "2025-01-15T10:00:00.000Z"
+}
+```
 
-### Error: "URL must be from issuu.com"
-- Verify that the URL is correct and contains `issuu.com`
+### Downloads List
+```json
+{
+  "downloads": [
+    {
+      "fileName": "issue 297.pdf",
+      "issueNumber": 297,
+      "fileSize": "141.25 MB",
+      "downloadUrl": "/downloads/issue%20297.pdf",
+      "createdAt": "2025-01-15T09:00:00.000Z"
+    }
+  ]
+}
+```
 
-### Error: "Timeout"
-- The document might be too large or the server is busy
-- Try again later
+## 🚨 Error Handling
 
-### Error: "Conversion failed on server"
-- The document might not be available for download
-- Verify that the document is public
+The application includes comprehensive error handling:
 
+- **Network Errors**: Retries and fallback mechanisms
+- **File System Errors**: Graceful degradation
+- **API Errors**: Proper HTTP status codes and error messages
+- **Logging**: All errors are logged for debugging
 
+## 🔍 Troubleshooting
 
-## 📝 License
+### Common Issues
 
-MIT License - Feel free to use, modify, and distribute.
+1. **Port Already in Use**
+   ```bash
+   # Change port in api.js or set environment variable
+   PORT=3001 npm start
+   ```
 
-## 🤝 Contributions
+2. **Download Failures**
+   - Check internet connection
+   - Verify Issuu URL accessibility
+   - Check available disk space
 
-Contributions are welcome! If you find any bugs or have ideas for improvements, feel free to create an issue or pull request.
+3. **Cache Issues**
+   - Clear cache directory manually
+   - Restart the server
+   - Check file permissions
+
+### Debug Mode
+
+Enable detailed logging by modifying log levels in the respective files.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- Built with Node.js and Express
+- Uses node-cron for scheduling
+- Implements intelligent caching strategies
+- Designed for high-performance document delivery
+
+## 📞 Support
+
+For issues and questions:
+- Check the troubleshooting section
+- Review the API documentation
+- Open an issue on GitHub
 
 ---
 
-**Enjoy downloading your Issuu documents! 🎉**
+**Note**: This application is designed for educational and personal use. Please respect Issuu's terms of service and copyright laws when downloading documents.
