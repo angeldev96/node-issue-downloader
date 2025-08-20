@@ -7,7 +7,7 @@
     "issue-downloader": "./app.js"
   },
   "scripts": {
-    "start": "node api.js",
+    "start": "node server.js",
     "cli": "node app.js",
     "test": "node app.js https://issuu.com/thebpview/docs/issue_296",
     "download-latest": "node -e \"require('./scheduler').runImmediateDownload()\""
