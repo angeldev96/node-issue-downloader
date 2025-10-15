@@ -39,18 +39,27 @@ class IssuuDownloader {
             };
 
             const req = client.request(requestOptions, (res) => {
-                let data = '';
-                
+                // Collect raw Buffer chunks and concat to avoid encoding corruption
+                const chunks = [];
+
                 res.on('data', (chunk) => {
-                    data += chunk;
+                    chunks.push(Buffer.from(chunk));
                 });
-                
+
                 res.on('end', () => {
+                    const buffer = Buffer.concat(chunks);
+                    // Convert to string for JSON responses; caller may parse JSON
+                    const dataStr = buffer.toString('utf8');
+
                     resolve({
                         statusCode: res.statusCode,
                         headers: res.headers,
-                        data: data
+                        data: dataStr
                     });
+                });
+
+                res.on('error', (err) => {
+                    reject(err);
                 });
             });
 
@@ -75,24 +84,58 @@ class IssuuDownloader {
             const isHttps = urlObj.protocol === 'https:';
             const client = isHttps ? https : http;
             
-            const file = fs.createWriteStream(outputPath);
-            
+            // Write to a temporary file first, then rename to avoid serving partial files
+            const tmpPath = `${outputPath}.tmp`;
+            const file = fs.createWriteStream(tmpPath);
+
             const request = client.get(url, (response) => {
                 if (response.statusCode !== 200) {
-                    reject(new Error(`Error downloading: ${response.statusCode}`));
-                    return;
+                    // consume response and delete tmp file
+                    response.resume();
+                    file.destroy();
+                    fs.unlink(tmpPath, () => {});
+                    return reject(new Error(`Error downloading: ${response.statusCode}`));
                 }
-                
+
                 response.pipe(file);
-                
+
+                // Handle response errors
+                response.on('error', (err) => {
+                    file.destroy();
+                    fs.unlink(tmpPath, () => {});
+                    reject(err);
+                });
+
+                // Handle file stream errors
+                file.on('error', (err) => {
+                    response.unpipe(file);
+                    fs.unlink(tmpPath, () => {});
+                    reject(err);
+                });
+
                 file.on('finish', () => {
-                    file.close();
-                    resolve();
+                    // Ensure data is flushed to disk then rename
+                    file.close((closeErr) => {
+                        if (closeErr) {
+                            fs.unlink(tmpPath, () => {});
+                            return reject(closeErr);
+                        }
+
+                        // Atomically move temp file to final destination
+                        fs.rename(tmpPath, outputPath, (renameErr) => {
+                            if (renameErr) {
+                                fs.unlink(tmpPath, () => {});
+                                return reject(renameErr);
+                            }
+                            resolve();
+                        });
+                    });
                 });
             });
-            
+
             request.on('error', (err) => {
-                fs.unlink(outputPath, () => {}); // Delete partial file
+                file.destroy();
+                fs.unlink(tmpPath, () => {}); // Delete partial file
                 reject(err);
             });
         });

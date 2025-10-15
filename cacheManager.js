@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 /**
  * Cache manager for downloaded files
@@ -38,13 +39,24 @@ class CacheManager {
         const cacheFileName = `latest_issue_${issueNumber}.pdf`;
         const cacheFilePath = path.join(this.cacheDir, cacheFileName);
 
-        // Copy file to cache
+        // Copy file to cache (synchronously)
         fs.copyFileSync(sourceFilePath, cacheFilePath);
-        
+
         console.log(`File saved to cache: ${cacheFilePath}`);
-        
-        // Save metadata
-        this.saveMetadata(issueNumber);
+
+        // Compute checksum and size
+        try {
+            const fileBuffer = fs.readFileSync(cacheFilePath);
+            const checksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+            const stats = fs.statSync(cacheFilePath);
+
+            // Save metadata with checksum and size
+            this.saveMetadata(issueNumber, checksum, stats.size);
+        } catch (err) {
+            console.error('Error computing checksum for cache file:', err);
+            // Save metadata without checksum
+            this.saveMetadata(issueNumber);
+        }
         
         return cacheFilePath;
     }
@@ -53,13 +65,16 @@ class CacheManager {
      * Saves metadata for the latest issue in cache
      * @param {number} issueNumber - Issue number
      */
-    saveMetadata(issueNumber) {
+    saveMetadata(issueNumber, checksum = null, fileSize = null) {
         const metadata = {
             issueNumber,
             cachedAt: new Date().toISOString(),
             fileName: `latest_issue_${issueNumber}.pdf`
         };
-        
+
+        if (checksum) metadata.checksum = checksum;
+        if (fileSize !== null) metadata.fileSize = fileSize;
+
         fs.writeFileSync(
             path.join(this.cacheDir, 'metadata.json'),
             JSON.stringify(metadata, null, 2)

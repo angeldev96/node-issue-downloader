@@ -77,14 +77,31 @@ app.get('/api/download/latest', async (req, res) => {
         if (cache.isIssueInCache(issueNumber)) {
             const metadata = cache.getMetadata();
             const cachedFilePath = cache.getCachedFilePath();
-            
-            // Serve file directly with absolute path
-            return res.sendFile(path.resolve(cachedFilePath), {
-                headers: {
-                    'Content-Disposition': `attachment; filename="issue_${metadata.issueNumber}.pdf"`,
-                    'Content-Type': 'application/pdf'
+
+            // Serve file as a stream with Content-Length and checksum header
+            try {
+                const stats = fs.statSync(cachedFilePath);
+                res.setHeader('Content-Disposition', `attachment; filename=\"issue_${metadata.issueNumber}.pdf\"`);
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Length', stats.size);
+                if (metadata && metadata.checksum) {
+                    res.setHeader('X-Content-Checksum', metadata.checksum);
                 }
-            });
+
+                const stream = fs.createReadStream(cachedFilePath);
+                stream.on('error', (err) => {
+                    console.error('Stream error while serving cached file:', err);
+                    if (!res.headersSent) {
+                        res.status(500).json({ error: 'Error reading cached file' });
+                    } else {
+                        res.end();
+                    }
+                });
+                return stream.pipe(res);
+            } catch (err) {
+                console.error('Error serving cached file as stream:', err);
+                return res.status(500).json({ error: 'Error serving cached file' });
+            }
         }
         
         // Check if file already exists in downloads
@@ -95,24 +112,55 @@ app.get('/api/download/latest', async (req, res) => {
             // If exists in downloads but not in cache, save it to cache
             try {
                 const cachedPath = cache.cacheFile(filePath, issueNumber);
-                
-                // Serve file directly with absolute path
-                return res.sendFile(path.resolve(cachedPath), {
-                    headers: {
-                        'Content-Disposition': `attachment; filename="issue_${issueNumber}.pdf"`,
-                        'Content-Type': 'application/pdf'
+
+                try {
+                    const stats = fs.statSync(cachedPath);
+                    res.setHeader('Content-Disposition', `attachment; filename=\"issue_${issueNumber}.pdf\"`);
+                    res.setHeader('Content-Type', 'application/pdf');
+                    res.setHeader('Content-Length', stats.size);
+                    const metadata = cache.getMetadata();
+                    if (metadata && metadata.checksum) {
+                        res.setHeader('X-Content-Checksum', metadata.checksum);
                     }
-                });
+
+                    const stream = fs.createReadStream(cachedPath);
+                    stream.on('error', (err) => {
+                        console.error('Stream error while serving file:', err);
+                        if (!res.headersSent) {
+                            res.status(500).json({ error: 'Error reading file' });
+                        } else {
+                            res.end();
+                        }
+                    });
+                    return stream.pipe(res);
+                } catch (streamErr) {
+                    console.error('Error streaming cached file:', streamErr);
+                    return res.status(500).json({ error: 'Error serving file' });
+                }
             } catch (cacheError) {
                 console.error('Error saving to cache:', cacheError);
-                
-                // If error saving to cache, serve original file
-                return res.sendFile(path.resolve(filePath), {
-                    headers: {
-                        'Content-Disposition': `attachment; filename="issue_${issueNumber}.pdf"`,
-                        'Content-Type': 'application/pdf'
-                    }
-                });
+
+                // If error saving to cache, serve original file as stream
+                try {
+                    const stats = fs.statSync(filePath);
+                    res.setHeader('Content-Disposition', `attachment; filename=\"issue_${issueNumber}.pdf\"`);
+                    res.setHeader('Content-Type', 'application/pdf');
+                    res.setHeader('Content-Length', stats.size);
+
+                    const stream = fs.createReadStream(filePath);
+                    stream.on('error', (err) => {
+                        console.error('Stream error while serving original file:', err);
+                        if (!res.headersSent) {
+                            res.status(500).json({ error: 'Error reading file' });
+                        } else {
+                            res.end();
+                        }
+                    });
+                    return stream.pipe(res);
+                } catch (origErr) {
+                    console.error('Error serving original file:', origErr);
+                    return res.status(500).json({ error: 'Error serving file' });
+                }
             }
         }
         
