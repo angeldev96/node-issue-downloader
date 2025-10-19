@@ -37,6 +37,43 @@ class DownloadScheduler {
     }
 
     /**
+     * Cleans downloads folder to remove old issues
+     */
+    cleanDownloads() {
+        try {
+            const downloadsDir = this.downloader.outputDir;
+            if (!fs.existsSync(downloadsDir)) {
+                return;
+            }
+
+            const files = fs.readdirSync(downloadsDir);
+            let deletedCount = 0;
+
+            for (const file of files) {
+                if (file === '.gitkeep') continue;
+                
+                const filePath = path.join(downloadsDir, file);
+                try {
+                    const stats = fs.statSync(filePath);
+                    if (stats.isFile()) {
+                        fs.unlinkSync(filePath);
+                        this.logMessage(`Deleted old file: ${file}`);
+                        deletedCount++;
+                    }
+                } catch (err) {
+                    this.logMessage(`Error deleting ${file}: ${err.message}`);
+                }
+            }
+
+            if (deletedCount > 0) {
+                this.logMessage(`Cleaned ${deletedCount} file(s) from downloads folder`);
+            }
+        } catch (error) {
+            this.logMessage(`Error cleaning downloads: ${error.message}`);
+        }
+    }
+
+    /**
      * Downloads the latest available issue and saves it to cache
      */
     async downloadLatestIssue() {
@@ -54,6 +91,10 @@ class DownloadScheduler {
                 this.logMessage(`Issue ${issueNumber} is already in cache.`);
                 return;
             }
+            
+            // New issue detected - clean old downloads
+            this.logMessage(`New issue ${issueNumber} detected. Cleaning old downloads...`);
+            this.cleanDownloads();
             
             // Check if file already exists in downloads
             const fileName = `issue ${issueNumber}.pdf`;
@@ -93,7 +134,7 @@ class DownloadScheduler {
 
     /**
      * Schedules weekly download for every Wednesday at 9:00 AM
-     * and daily check at 10:00 AM for new issues
+     * and periodic checks every 6 hours for new issues
      */
     scheduleWeeklyDownload() {
         // Run every Wednesday at 9:00 AM
@@ -101,23 +142,27 @@ class DownloadScheduler {
             await this.downloadLatestIssue();
         });
         
-        // Check daily at 10:00 AM if there's a new issue available
-        cron.schedule('0 10 * * *', async () => {
+        // Check every 6 hours (00:00, 06:00, 12:00, 18:00) if there's a new issue available
+        cron.schedule('0 */6 * * *', async () => {
             try {
                 const latestIssueNumber = await this.tracker.getLatestIssueNumber();
-                if (!this.cache.isCacheUpToDate(latestIssueNumber)) {
-                    this.logMessage(`New issue detected (${latestIssueNumber}). Updating cache...`);
+                const metadata = this.cache.getMetadata();
+                const cachedIssueNumber = metadata ? metadata.issueNumber : 0;
+                
+                if (latestIssueNumber > cachedIssueNumber) {
+                    this.logMessage(`🆕 New issue detected! Latest: ${latestIssueNumber}, Cached: ${cachedIssueNumber}`);
+                    this.logMessage(`Cleaning old downloads and updating to issue ${latestIssueNumber}...`);
                     await this.downloadLatestIssue();
                 } else {
-                    this.logMessage(`Cache is up to date. Latest issue: ${latestIssueNumber}`);
+                    this.logMessage(`✅ Cache is up to date. Latest issue: ${latestIssueNumber}`);
                 }
             } catch (error) {
                 this.logMessage(`Error checking for updates: ${error.message}`);
             }
         });
         
-        this.logMessage('Weekly download scheduled for Wednesdays at 9:00 AM');
-        this.logMessage('Daily check scheduled for 10:00 AM');
+        this.logMessage('📅 Weekly download scheduled for Wednesdays at 9:00 AM');
+        this.logMessage('🔄 Automatic check scheduled every 6 hours for new issues');
     }
 
     /**

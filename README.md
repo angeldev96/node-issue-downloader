@@ -102,9 +102,10 @@ npm run download-latest
 The application includes an intelligent scheduling system:
 
 - **Weekly Downloads**: Every Wednesday at 9:00 AM
-- **Daily Monitoring**: Every day at 10:00 AM
-- **Automatic Cache Updates**: New issues are automatically cached
-- **Smart Cleanup**: Old files are removed when new ones are available
+- **Periodic Monitoring**: Every 6 hours (00:00, 06:00, 12:00, 18:00)
+- **Automatic Cache Updates**: New issues are automatically detected and cached
+- **Smart Cleanup**: When a new issue is detected, old downloads are automatically removed
+- **Pre-Deploy Cleanup**: Automatically cleans downloads folder before deployment
 
 ### Schedule Configuration
 
@@ -116,11 +117,21 @@ cron.schedule('0 9 * * 3', async () => {
     await this.downloadLatestIssue();
 });
 
-// Daily check (10:00 AM)
-cron.schedule('0 10 * * *', async () => {
-    // Check for new issues
+// Check every 6 hours for new issues
+cron.schedule('0 */6 * * *', async () => {
+    // Check for new issues and clean old downloads if needed
 });
 ```
+
+### Manual Cleanup
+
+Clean the downloads folder manually:
+
+```bash
+npm run clean
+```
+
+This is automatically run before deployment with the `predeploy` script.
 
 ## 🗄️ Cache System
 

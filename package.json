@@ -8,10 +8,12 @@
   },
   "scripts": {
     "start": "node server.js",
+    "predeploy": "node scripts/clean-downloads.js",
     "cli": "node app.js",
     "test": "node tools/test_download.js",
     "test:port": "node tools/test_download.js --port=3001",
     "validate": "node tools/validate_pdf.js",
+    "clean": "node scripts/clean-downloads.js",
     "download-latest": "node -e \"require('./scheduler').runImmediateDownload()\""
   },
   "keywords": [

@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.0] - 2025-10-19
+
+### Added
+- **Pre-Deploy Cleanup Script**: `scripts/clean-downloads.js` automatically cleans downloads folder before deployment
+- **Automatic Download Cleanup**: When a new issue is detected, old downloads are automatically removed
+- **Smart Cache Comparison**: Scheduler now compares cached issue number with latest issue number (not just checking if exists)
+- **Deployment Guide**: Added `DEPLOYMENT.md` with comprehensive deployment instructions
+- **NPM Scripts**: Added `npm run clean` and `npm run predeploy` commands
+
+### Changed
+- **Monitoring Frequency**: Changed from daily check to every 6 hours (00:00, 06:00, 12:00, 18:00)
+- **Download Behavior**: Now cleans old files before downloading new issue
+- **Scheduler Logic**: Improved to properly detect new issues even after redeploy
+- **Downloads Folder**: Added `.gitignore` and `.gitkeep` to preserve folder structure but ignore PDF files
+
+### Fixed
+- **Redeploy Issue**: Fixed problem where old cached issue (304) was served after redeploy instead of current issue (305)
+- **Memory Persistence**: System now properly detects and downloads current issue on each deployment
+
 ## [1.1.0] - 2025-10-19
 
 ### Added
