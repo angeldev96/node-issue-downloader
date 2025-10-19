@@ -11,6 +11,9 @@ A powerful Node.js application for automatically downloading Issuu documents wit
 - **Daily Monitoring**: Checks for new issues daily at 10:00 AM
 - **CLI Interface**: Command-line interface for direct usage
 - **Automatic Cleanup**: Removes old files when new issues are available
+- **Integrity Validation**: SHA256 checksums and file validation to prevent corruption
+- **Streaming Downloads**: Efficient binary file handling with Content-Length headers
+- **Current Issue Detection**: Automatically detects latest issue from thebpview.com
 
 ## 📋 Requirements
 
@@ -215,6 +218,40 @@ The application includes comprehensive error handling:
 - **API Errors**: Proper HTTP status codes and error messages
 - **Logging**: All errors are logged for debugging
 
+## 🧪 Testing & Validation
+
+### Validate Cached PDF
+
+Check the integrity of the cached PDF file:
+
+```bash
+npm run validate
+```
+
+This will verify:
+- File exists and is accessible
+- File size matches metadata
+- Magic header starts with `%PDF`
+- SHA256 checksum matches metadata (if available)
+
+### End-to-End Download Test
+
+Run a complete download and validation test:
+
+```bash
+# With default port (3000)
+npm test
+
+# With custom port
+npm run test:port
+```
+
+This will:
+1. Get latest issue information
+2. Trigger download
+3. Poll for completion
+4. Validate file integrity
+
 ## 🔍 Troubleshooting
 
 ### Common Issues
@@ -229,15 +266,55 @@ The application includes comprehensive error handling:
    - Check internet connection
    - Verify Issuu URL accessibility
    - Check available disk space
+   - Review logs in `logs/` directory
 
 3. **Cache Issues**
    - Clear cache directory manually
    - Restart the server
    - Check file permissions
 
+4. **Corrupted PDF Files**
+   
+   If macOS Preview shows "could not be opened" but file size looks correct:
+   
+   ```bash
+   # Install qpdf (if not already installed)
+   brew install qpdf
+   
+   # Check for errors
+   qpdf --check cache/latest_issue_*.pdf
+   
+   # Attempt repair
+   qpdf --repair cache/latest_issue_*.pdf cache/repaired.pdf
+   
+   # Try opening repaired.pdf
+   ```
+   
+   Alternative validation with poppler:
+   ```bash
+   brew install poppler
+   pdfinfo cache/latest_issue_*.pdf
+   ```
+
+5. **Wrong Issue Number Downloaded**
+   
+   The system automatically detects the current issue from `https://thebpview.com/current-issue.php`.
+   To verify detection:
+   
+   ```bash
+   node -e "const IssueTracker=require('./issueTracker');(async()=>{const t=new IssueTracker(); console.log('Latest:', await t.getLatestIssueUrl());})()"
+   ```
+
 ### Debug Mode
 
 Enable detailed logging by modifying log levels in the respective files.
+
+### File Integrity
+
+All cached files include SHA256 checksums in `cache/metadata.json`. The API serves files with:
+- `Content-Length` header for size verification
+- `X-Content-Checksum` header with SHA256 hash
+- Streaming delivery to prevent truncation
 
 ## 🤝 Contributing
 

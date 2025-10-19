@@ -17,18 +17,38 @@ class IssueTracker {
                 const resp = await axios.get('https://www.thebpview.com/current-issue.php');
                 const html = resp.data || '';
 
-                // Try to find explicit issuu URL with issue number
-                let m = html.match(/issuu\.com\/thebpview\/docs\/issue[_-]?(\d+)/i);
+                // Priority 1: Look for the Issuu embed iframe (most reliable source)
+                let m = html.match(/e\.issuu\.com\/embed\.html\?d=issue[_-]?(\d+)/i);
                 if (m && m[1]) {
                     const n = parseInt(m[1], 10);
                     if (!isNaN(n)) {
-                        console.log(`Latest issue number found from thebpview.com: ${n}`);
+                        console.log(`Latest issue number found from Issuu embed: ${n}`);
                         return n;
                     }
                 }
 
-                // Try to find patterns like "Issue 305" or "issue_305"
-                m = html.match(/Issue\s+(\d+)/i) || html.match(/issue[_-]?(\d+)/i);
+                // Priority 2: Try to find explicit issuu URL with issue number
+                m = html.match(/issuu\.com\/thebpview\/docs\/issue[_-]?(\d+)/i);
+                if (m && m[1]) {
+                    const n = parseInt(m[1], 10);
+                    if (!isNaN(n)) {
+                        console.log(`Latest issue number found from thebpview.com docs link: ${n}`);
+                        return n;
+                    }
+                }
+
+                // Priority 3: Try to find patterns like "Issue 305" or "issue_305" in title/heading
+                m = html.match(/<p[^>]*class="title"[^>]*>Issue\s+(\d+)/i);
+                if (m && m[1]) {
+                    const n = parseInt(m[1], 10);
+                    if (!isNaN(n)) {
+                        console.log(`Latest issue number inferred from title: ${n}`);
+                        return n;
+                    }
+                }
+
+                // Fallback: any occurrence of Issue followed by number
+                m = html.match(/Issue\s+(\d+)/i);
                 if (m && m[1]) {
                     const n = parseInt(m[1], 10);
                     if (!isNaN(n)) {
