@@ -15,6 +15,7 @@ class IssuuDownloader {
         this.apiUrl = 'https://backend.img2pdf.net/download-pdf';
         this.statusUrl = 'https://backend.img2pdf.net/job';
         this.outputDir = 'downloads';
+        this.activeDownloads = new Set(); // Track active downloads to prevent duplicates
     }
 
     /**
@@ -80,12 +81,29 @@ class IssuuDownloader {
      */
     downloadFile(url, outputPath) {
         return new Promise((resolve, reject) => {
+            // Check if final file already exists
+            if (fs.existsSync(outputPath)) {
+                console.log(`File already exists, skipping download: ${outputPath}`);
+                return resolve();
+            }
+
             const urlObj = new URL(url);
             const isHttps = urlObj.protocol === 'https:';
             const client = isHttps ? https : http;
             
             // Write to a temporary file first, then rename to avoid serving partial files
             const tmpPath = `${outputPath}.tmp`;
+            
+            // Check if temp file exists from previous failed attempt
+            if (fs.existsSync(tmpPath)) {
+                try {
+                    fs.unlinkSync(tmpPath);
+                    console.log(`Removed stale temp file: ${tmpPath}`);
+                } catch (e) {
+                    console.warn(`Could not remove stale temp file: ${e.message}`);
+                }
+            }
+
             const file = fs.createWriteStream(tmpPath);
 
             const request = client.get(url, (response) => {
@@ -121,9 +139,22 @@ class IssuuDownloader {
                             return reject(closeErr);
                         }
 
+                        // Check again if final file exists (race condition)
+                        if (fs.existsSync(outputPath)) {
+                            console.log(`File created by another process, cleaning up temp: ${tmpPath}`);
+                            fs.unlink(tmpPath, () => {});
+                            return resolve();
+                        }
+
                         // Atomically move temp file to final destination
                         fs.rename(tmpPath, outputPath, (renameErr) => {
                             if (renameErr) {
+                                // If rename fails but file exists, it might have been created by another process
+                                if (fs.existsSync(outputPath)) {
+                                    console.log(`File exists after rename error, cleaning up temp`);
+                                    fs.unlink(tmpPath, () => {});
+                                    return resolve();
+                                }
                                 fs.unlink(tmpPath, () => {});
                                 return reject(renameErr);
                             }
@@ -251,7 +282,14 @@ class IssuuDownloader {
      * Downloads an Issuu document
      */
     async downloadDocument(documentUrl, customFileName = null) {
+        // Check if this URL is already being downloaded
+        if (this.activeDownloads.has(documentUrl)) {
+            console.log(`⚠️  Download already in progress for: ${documentUrl}`);
+            return false;
+        }
+
         try {
+            this.activeDownloads.add(documentUrl);
             this.ensureOutputDir();
             
             // Extract document name from URL
@@ -259,6 +297,13 @@ class IssuuDownloader {
             const documentName = customFileName || urlParts[urlParts.length - 1].replace(/[_-]/g, ' ');
             const fileName = this.formatFileName(documentName) + '.pdf';
             const outputPath = path.join(this.outputDir, fileName);
+            
+            // Check if file already exists
+            if (fs.existsSync(outputPath)) {
+                console.log(`✅ File already exists: ${outputPath}`);
+                this.activeDownloads.delete(documentUrl);
+                return true;
+            }
             
             console.log(`📄 Document: ${documentName}`);
             console.log(`💾 Output File: ${outputPath}`);
@@ -316,6 +361,9 @@ class IssuuDownloader {
         } catch (error) {
             console.error(`💔 Error during download:`, error.message);
             return false;
+        } finally {
+            // Always remove from active downloads
+            this.activeDownloads.delete(documentUrl);
         }
     }
 }
