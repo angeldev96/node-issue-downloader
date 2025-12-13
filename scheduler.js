@@ -127,14 +127,21 @@ class DownloadScheduler {
                 }
             }
             
-            // Save to cache if download was successful
-            if (downloadSuccess) {
+            // Save to cache if download was successful AND file exists
+            if (downloadSuccess && fs.existsSync(filePath)) {
                 try {
+                    this.logMessage(`Verifying file before caching: ${filePath}`);
+                    const stats = fs.statSync(filePath);
+                    this.logMessage(`File size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+                    
                     const cachedPath = this.cache.cacheFile(filePath, issueNumber);
                     this.logMessage(`Issue ${issueNumber} saved to cache: ${cachedPath}`);
                 } catch (cacheError) {
                     this.logMessage(`Error saving to cache: ${cacheError.message}`);
+                    console.error('Cache error stack:', cacheError.stack);
                 }
+            } else if (downloadSuccess && !fs.existsSync(filePath)) {
+                this.logMessage(`Warning: Download reported success but file not found: ${filePath}`);
             }
         } catch (error) {
             this.logMessage(`Error in scheduled download: ${error.message}`);

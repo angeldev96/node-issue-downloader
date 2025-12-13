@@ -296,6 +296,26 @@ app.get('/api/cached-file', (req, res) => {
     }
 });
 
+// Force download endpoint - ignores cache and downloads fresh
+app.get('/api/force-download', async (req, res) => {
+    try {
+        res.json({ message: 'Download started in background. Check /api/debug in 2-3 minutes.' });
+        
+        // Start download in background
+        setTimeout(async () => {
+            try {
+                console.log('🔄 Force download initiated...');
+                await scheduler.downloadLatestIssue();
+                console.log('✅ Force download completed');
+            } catch (error) {
+                console.error('❌ Force download failed:', error);
+            }
+        }, 100);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Debug endpoint - shows actual file system state
 app.get('/api/debug', (req, res) => {
     try {
