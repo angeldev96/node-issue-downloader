@@ -82,9 +82,10 @@ class DownloadScheduler {
             
             // Get the latest issue URL
             const latestIssueUrl = await this.tracker.getLatestIssueUrl();
-            const issueNumber = parseInt(latestIssueUrl.split('_').pop(), 10);
+            const issueNumber = await this.tracker.getLatestIssueNumber();
             
             this.logMessage(`Latest issue URL: ${latestIssueUrl}`);
+            this.logMessage(`Issue number: ${issueNumber}`);
             
             // Check if already in cache
             if (this.cache.isIssueInCache(issueNumber)) {
@@ -106,9 +107,15 @@ class DownloadScheduler {
                 this.logMessage(`Issue ${issueNumber} has already been downloaded previously.`);
                 downloadSuccess = true;
             } else {
-                // Download the document
-                this.logMessage(`Downloading issue ${issueNumber}...`);
-                downloadSuccess = await this.downloader.downloadDocument(latestIssueUrl);
+                // Check if this is a Publuu URL (new platform) or Issuu (old platform)
+                if (this.tracker.isPubluuUrl(latestIssueUrl)) {
+                    this.logMessage(`Downloading issue ${issueNumber} from Publuu...`);
+                    downloadSuccess = await this.tracker.downloadFromPubluu(latestIssueUrl, filePath);
+                } else {
+                    // Use the old Issuu downloader
+                    this.logMessage(`Downloading issue ${issueNumber} from Issuu...`);
+                    downloadSuccess = await this.downloader.downloadDocument(latestIssueUrl);
+                }
                 
                 if (downloadSuccess) {
                     this.logMessage(`Issue ${issueNumber} downloaded successfully.`);
@@ -133,17 +140,13 @@ class DownloadScheduler {
     }
 
     /**
-     * Schedules weekly download for every Wednesday at 9:00 AM
-     * and periodic checks every 6 hours for new issues
+     * Schedules daily checks and automatic downloads when new issues are detected
+     * This ensures we always have the latest issue cached
      */
     scheduleWeeklyDownload() {
-        // Run every Wednesday at 9:00 AM
-        cron.schedule('0 9 * * 3', async () => {
-            await this.downloadLatestIssue();
-        });
-        
-        // Check every 6 hours (00:00, 06:00, 12:00, 18:00) if there's a new issue available
-        cron.schedule('0 */6 * * *', async () => {
+        // Check DAILY at 10:00 AM if there's a new issue available
+        cron.schedule('0 10 * * *', async () => {
+            this.logMessage('🔍 Running daily check for new issues...');
             try {
                 const latestIssueNumber = await this.tracker.getLatestIssueNumber();
                 const metadata = this.cache.getMetadata();
@@ -151,18 +154,55 @@ class DownloadScheduler {
                 
                 if (latestIssueNumber > cachedIssueNumber) {
                     this.logMessage(`🆕 New issue detected! Latest: ${latestIssueNumber}, Cached: ${cachedIssueNumber}`);
-                    this.logMessage(`Cleaning old downloads and updating to issue ${latestIssueNumber}...`);
+                    this.logMessage(`Downloading and caching new issue ${latestIssueNumber}...`);
                     await this.downloadLatestIssue();
                 } else {
                     this.logMessage(`✅ Cache is up to date. Latest issue: ${latestIssueNumber}`);
                 }
             } catch (error) {
-                this.logMessage(`Error checking for updates: ${error.message}`);
+                this.logMessage(`❌ Error checking for updates: ${error.message}`);
             }
         });
         
-        this.logMessage('📅 Weekly download scheduled for Wednesdays at 9:00 AM');
-        this.logMessage('🔄 Automatic check scheduled every 6 hours for new issues');
+        // Additional check every 6 hours for redundancy
+        cron.schedule('0 */6 * * *', async () => {
+            try {
+                const latestIssueNumber = await this.tracker.getLatestIssueNumber();
+                const metadata = this.cache.getMetadata();
+                const cachedIssueNumber = metadata ? metadata.issueNumber : 0;
+                
+                if (latestIssueNumber > cachedIssueNumber) {
+                    this.logMessage(`🆕 New issue detected during 6-hour check! Latest: ${latestIssueNumber}, Cached: ${cachedIssueNumber}`);
+                    this.logMessage(`Downloading and caching new issue ${latestIssueNumber}...`);
+                    await this.downloadLatestIssue();
+                }
+            } catch (error) {
+                this.logMessage(`Error in 6-hour check: ${error.message}`);
+            }
+        });
+        
+        // Also run check immediately on startup to ensure we have the latest
+        this.logMessage('🚀 Running initial check for latest issue...');
+        setTimeout(async () => {
+            try {
+                const latestIssueNumber = await this.tracker.getLatestIssueNumber();
+                const metadata = this.cache.getMetadata();
+                const cachedIssueNumber = metadata ? metadata.issueNumber : 0;
+                
+                if (latestIssueNumber > cachedIssueNumber) {
+                    this.logMessage(`🆕 New issue found on startup! Latest: ${latestIssueNumber}, Cached: ${cachedIssueNumber || 'none'}`);
+                    await this.downloadLatestIssue();
+                } else {
+                    this.logMessage(`✅ Cache is already up to date with issue ${latestIssueNumber}`);
+                }
+            } catch (error) {
+                this.logMessage(`Error in startup check: ${error.message}`);
+            }
+        }, 5000); // Wait 5 seconds after startup
+        
+        this.logMessage('📅 Daily check scheduled for 10:00 AM every day');
+        this.logMessage('🔄 Additional checks every 6 hours for new issues');
+        this.logMessage('✨ Startup check will run in 5 seconds');
     }
 
     /**

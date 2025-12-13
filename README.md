@@ -99,29 +99,42 @@ npm run download-latest
 
 ## ⏰ Scheduling System
 
-The application includes an intelligent scheduling system:
+The application includes an intelligent scheduling system that ensures you always have the latest issue available:
 
-- **Weekly Downloads**: Every Wednesday at 9:00 AM
-- **Periodic Monitoring**: Every 6 hours (00:00, 06:00, 12:00, 18:00)
-- **Automatic Cache Updates**: New issues are automatically detected and cached
+- **Daily Verification**: Every day at 10:00 AM, checks if a new issue is available
+- **Automatic Downloads**: When a new issue is detected, it's automatically downloaded and cached
+- **Periodic Monitoring**: Additional checks every 6 hours (00:00, 06:00, 12:00, 18:00) for redundancy
+- **Startup Check**: Verifies and downloads the latest issue when the server starts
 - **Smart Cleanup**: When a new issue is detected, old downloads are automatically removed
-- **Pre-Deploy Cleanup**: Automatically cleans downloads folder before deployment
+- **Single Source of Truth**: Only the latest issue is kept in cache for instant access
 
 ### Schedule Configuration
 
 You can modify the scheduling in `scheduler.js`:
 
 ```javascript
-// Weekly download (Wednesday at 9:00 AM)
-cron.schedule('0 9 * * 3', async () => {
-    await this.downloadLatestIssue();
+// Daily check at 10:00 AM - verifies if new issue is available
+cron.schedule('0 10 * * *', async () => {
+    // Checks thebpview.com/current-issue.php for the latest issue
+    // If newer than cached, downloads and caches automatically
 });
 
-// Check every 6 hours for new issues
+// Additional check every 6 hours for redundancy
 cron.schedule('0 */6 * * *', async () => {
-    // Check for new issues and clean old downloads if needed
+    // Extra checks to ensure we catch new issues quickly
 });
 ```
+
+### How It Works
+
+1. **On Startup**: Server checks if the cached issue is the latest from `https://thebpview.com/current-issue.php`
+2. **Daily at 10:00 AM**: Automatic check for new issues
+3. **Every 6 Hours**: Additional verification checks
+4. **When New Issue Detected**: 
+   - Downloads the new issue PDF
+   - Cleans old files from downloads folder
+   - Caches the new issue for instant access
+   - Updates metadata with issue number and timestamp
 
 ### Manual Cleanup
 
