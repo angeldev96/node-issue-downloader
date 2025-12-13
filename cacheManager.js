@@ -58,7 +58,7 @@ class CacheManager {
         }
         
         // Clear old cache files AFTER metadata is saved
-        this.clearCache();
+        this.clearCache(issueNumber);
         
         return cacheFilePath;
     }
@@ -134,16 +134,17 @@ class CacheManager {
     }
 
     /**
-     * Clears all files from cache except metadata.json
+     * Clears all files from cache except metadata.json and current issue
+     * @param {number} currentIssueNumber - Current issue number to preserve
      */
-    clearCache() {
+    clearCache(currentIssueNumber = null) {
         if (!fs.existsSync(this.cacheDir)) {
             return;
         }
         
         const files = fs.readdirSync(this.cacheDir);
         const metadata = this.getMetadata();
-        const currentFileName = metadata ? metadata.fileName : null;
+        const currentFileName = metadata ? metadata.fileName : (currentIssueNumber ? `latest_issue_${currentIssueNumber}.pdf` : null);
         
         for (const file of files) {
             // Skip metadata.json, current latest file, and directories
