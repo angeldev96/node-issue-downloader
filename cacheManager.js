@@ -8,9 +8,9 @@ const crypto = require('crypto');
  */
 class CacheManager {
     constructor() {
-        // Use /app/downloads/cache if /app/downloads exists (Railway), otherwise use local cache
+        // Use /app/downloads directly if it exists (Railway), otherwise use local cache directory
         const fs = require('fs');
-        this.cacheDir = fs.existsSync('/app/downloads') ? '/app/downloads/cache' : 'cache';
+        this.cacheDir = fs.existsSync('/app/downloads') ? '/app/downloads' : 'cache';
         this.ensureCacheDir();
     }
 

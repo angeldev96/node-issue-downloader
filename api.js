@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 3000;
 
 // Determine paths based on environment
 const downloadsPath = fs.existsSync('/app/downloads') ? '/app/downloads' : path.join(__dirname, 'downloads');
-const cachePath = fs.existsSync('/app/downloads') ? '/app/downloads/cache' : path.join(__dirname, 'cache');
+const cachePath = fs.existsSync('/app/downloads') ? '/app/downloads' : path.join(__dirname, 'cache');
 
 // Middleware
 app.use(cors());
