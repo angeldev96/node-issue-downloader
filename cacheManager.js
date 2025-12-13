@@ -42,9 +42,6 @@ class CacheManager {
         fs.copyFileSync(sourceFilePath, cacheFilePath);
 
         console.log(`File saved to cache: ${cacheFilePath}`);
-        
-        // Clear previous cache AFTER copying
-        this.clearCache();
 
         // Compute checksum and size
         try {
@@ -52,13 +49,16 @@ class CacheManager {
             const checksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
             const stats = fs.statSync(cacheFilePath);
 
-            // Save metadata with checksum and size
+            // Save metadata BEFORE clearing (so clearCache knows which file to keep)
             this.saveMetadata(issueNumber, checksum, stats.size);
         } catch (err) {
             console.error('Error computing checksum for cache file:', err);
             // Save metadata without checksum
             this.saveMetadata(issueNumber);
         }
+        
+        // Clear old cache files AFTER metadata is saved
+        this.clearCache();
         
         return cacheFilePath;
     }
