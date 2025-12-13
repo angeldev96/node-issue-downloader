@@ -19,7 +19,18 @@ In Railway:
 
 The code checks for `/app/downloads` existence and switches between local paths (development) and Railway paths (production) automatically.
 
-### 2. Clean Downloads Folder (Local Only)
+### 2. Node.js Version Requirements
+
+**REQUIRED**: Node.js 18.x or higher (Puppeteer dependency)
+
+The project includes:
+- `.nvmrc` - For nvm and Railway
+- `.node-version` - For mise and other version managers  
+- `package.json` engines field - Enforces minimum version
+
+Railway will automatically detect and use Node.js 18.20.0 from these files.
+
+### 3. Clean Downloads Folder (Local Only)
 
 For local development cleanup:
 
