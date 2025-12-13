@@ -14,7 +14,8 @@ class IssuuDownloader {
     constructor() {
         this.apiUrl = 'https://backend.img2pdf.net/download-pdf';
         this.statusUrl = 'https://backend.img2pdf.net/job';
-        this.outputDir = 'downloads';
+        // Use /app/downloads if it exists (Railway), otherwise use local downloads
+        this.outputDir = require('fs').existsSync('/app/downloads') ? '/app/downloads' : 'downloads';
         this.activeDownloads = new Set(); // Track active downloads to prevent duplicates
     }
 

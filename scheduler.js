@@ -10,7 +10,9 @@ class DownloadScheduler {
         this.downloader = new IssuuDownloader();
         this.tracker = new IssueTracker();
         this.cache = new CacheManager();
-        this.logDir = 'logs';
+        // Use /app/downloads/logs if /app/downloads exists (Railway), otherwise use local logs
+        const fs = require('fs');
+        this.logDir = fs.existsSync('/app/downloads') ? '/app/downloads/logs' : 'logs';
         this.ensureLogDir();
     }
 

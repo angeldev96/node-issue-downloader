@@ -4,25 +4,42 @@
 
 Before deploying to production, follow these steps:
 
-### 1. Clean Downloads Folder
+### 1. Railway Volume Setup
 
-The `predeploy` script will automatically clean the downloads folder when you run deployment commands:
+**CRITICAL**: This application requires a persistent volume for file storage.
+
+In Railway:
+1. Go to your service settings
+2. Navigate to "Volumes" tab
+3. Create a new volume with mount path: `/app/downloads`
+4. The application will automatically detect this path and use it for:
+   - Downloaded PDFs
+   - Cache directory
+   - Log files
+
+The code checks for `/app/downloads` existence and switches between local paths (development) and Railway paths (production) automatically.
+
+### 2. Clean Downloads Folder (Local Only)
+
+For local development cleanup:
 
 ```bash
 npm run predeploy
 ```
 
-This ensures that:
+This ensures:
 - Old issue files are removed
 - Fresh downloads will happen on the new deployment
 - No stale files from previous versions
 
-### 2. Environment Variables
+**Note**: On Railway, the persistent volume maintains the latest issue across deployments.
+
+### 3. Environment Variables
 
 Set the following environment variables in your deployment platform:
 
 ```bash
-PORT=3000  # or your preferred port
+PORT=3000  # or your preferred port (Railway sets this automatically)
 NODE_ENV=production
 ```
 

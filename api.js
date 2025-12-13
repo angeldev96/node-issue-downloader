@@ -17,11 +17,15 @@ const cache = new CacheManager();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Determine paths based on environment
+const downloadsPath = fs.existsSync('/app/downloads') ? '/app/downloads' : path.join(__dirname, 'downloads');
+const cachePath = fs.existsSync('/app/downloads') ? '/app/downloads/cache' : path.join(__dirname, 'cache');
+
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
-app.use('/cache', express.static(path.join(__dirname, 'cache')));
+app.use('/downloads', express.static(downloadsPath));
+app.use('/cache', express.static(cachePath));
 
 // Endpoint to get latest issue information
 app.get('/api/latest', async (req, res) => {
