@@ -144,8 +144,16 @@ class CacheManager {
         const files = fs.readdirSync(this.cacheDir);
         
         for (const file of files) {
-            if (file !== 'metadata.json') {
-                const filePath = path.join(this.cacheDir, file);
+            // Skip metadata.json, logs directory, cache directory, and lost+found
+            if (file === 'metadata.json' || file === 'logs' || file === 'cache' || file === 'lost+found') {
+                continue;
+            }
+            
+            const filePath = path.join(this.cacheDir, file);
+            
+            // Only delete files, not directories
+            const stats = fs.statSync(filePath);
+            if (stats.isFile()) {
                 fs.unlinkSync(filePath);
                 console.log(`File removed from cache: ${filePath}`);
             }
