@@ -168,10 +168,20 @@ class IssueTracker {
                 fs.mkdirSync(dir, { recursive: true });
             }
             
-            // Launch browser
+            // Launch browser with Railway-compatible settings
             browser = await puppeteer.launch({
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
+                headless: 'new',
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-gpu',
+                    '--window-size=1920x1080',
+                    '--single-process',
+                    '--no-zygote'
+                ],
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
             });
             
             const page = await browser.newPage();

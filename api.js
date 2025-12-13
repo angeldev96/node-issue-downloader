@@ -296,6 +296,47 @@ app.get('/api/cached-file', (req, res) => {
     }
 });
 
+// Debug endpoint - shows actual file system state
+app.get('/api/debug', (req, res) => {
+    try {
+        const metadata = cache.getMetadata();
+        const cachedFilePath = cache.getCachedFilePath();
+        
+        const debugInfo = {
+            environment: {
+                nodeVersion: process.version,
+                platform: process.platform,
+                cwd: process.cwd(),
+                isRailway: fs.existsSync('/app/downloads')
+            },
+            paths: {
+                downloadsPath,
+                cachePath,
+                cacheDir: cache.cacheDir
+            },
+            cache: {
+                metadata,
+                cachedFilePath,
+                fileExists: cachedFilePath ? fs.existsSync(cachedFilePath) : false,
+                fileSize: cachedFilePath && fs.existsSync(cachedFilePath) ? fs.statSync(cachedFilePath).size : 0
+            },
+            directories: {
+                downloadsExists: fs.existsSync(downloadsPath),
+                cacheExists: fs.existsSync(cachePath),
+                downloadsContent: fs.existsSync(downloadsPath) ? fs.readdirSync(downloadsPath) : [],
+                cacheContent: fs.existsSync(cachePath) ? fs.readdirSync(cachePath) : []
+            }
+        };
+        
+        res.json(debugInfo);
+    } catch (error) {
+        res.status(500).json({ 
+            error: error.message,
+            stack: error.stack 
+        });
+    }
+});
+
 // Start server
 app.listen(PORT, () => {
     console.log(`API Server started at http://localhost:${PORT}`);
@@ -305,6 +346,7 @@ app.listen(PORT, () => {
     console.log('- GET  /api/cached-file     - Get cached file directly');
     console.log('- GET  /api/status/:issueNumber - Check download status');
     console.log('- GET  /api/downloads       - List all downloaded issues');
+    console.log('- GET  /api/debug           - Debug system state');
     console.log('- GET  /downloads/:filename  - Download specific file');
     console.log('- GET  /cache/:filename      - Download specific file from cache');
 });
