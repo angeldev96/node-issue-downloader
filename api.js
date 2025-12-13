@@ -270,30 +270,36 @@ app.get('/api/downloads', (req, res) => {
 // Start download scheduler
 scheduler.scheduleWeeklyDownload();
 
-// Endpoint to get cached file directly
-app.get('/api/cached-file', (req, res) => {
+// Endpoint to download the latest issue - SIMPLE
+app.get('/download', (req, res) => {
     try {
-        const cachedFilePath = cache.getCachedFilePath();
+        const filePath = path.join(downloadsPath, 'latest_issue.pdf');
         
-        if (!cachedFilePath) {
+        if (!fs.existsSync(filePath)) {
             return res.status(404).json({
-                error: 'No cached file available'
+                error: 'File not found. Try /api/force-download first.'
             });
         }
         
-        const metadata = cache.getMetadata();
+        const stats = fs.statSync(filePath);
+        console.log(`📄 Serving file: ${filePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
         
-        // Serve file directly with absolute path
-        res.sendFile(path.resolve(cachedFilePath), {
-            headers: {
-                'Content-Disposition': `attachment; filename="issue_${metadata.issueNumber}.pdf"`,
-                'Content-Type': 'application/pdf'
-            }
-        });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Length', stats.size);
+        res.setHeader('Content-Disposition', 'attachment; filename="latest_issue.pdf"');
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        
+        const stream = fs.createReadStream(filePath);
+        stream.pipe(res);
     } catch (error) {
-        console.error('Error serving cached file:', error);
-        res.status(500).json({ error: 'Error serving cached file' });
+        console.error('Error serving file:', error);
+        res.status(500).json({ error: 'Error serving file' });
     }
+});
+
+// Legacy endpoint
+app.get('/api/cached-file', (req, res) => {
+    res.redirect('/download');
 });
 
 // Force download endpoint - ignores cache and downloads fresh

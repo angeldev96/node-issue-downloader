@@ -24,7 +24,7 @@ class CacheManager {
     }
 
     /**
-     * Saves a file to cache
+     * Saves a file to cache - SIMPLE VERSION
      * @param {string} sourceFilePath - Source file path
      * @param {number} issueNumber - Issue number
      * @returns {string} - Cached file path
@@ -34,31 +34,23 @@ class CacheManager {
             throw new Error(`Source file does not exist: ${sourceFilePath}`);
         }
 
-        // Create cache filename
-        const cacheFileName = `latest_issue_${issueNumber}.pdf`;
+        // Always use the same filename for simplicity
+        const cacheFileName = `latest_issue.pdf`;
         const cacheFilePath = path.join(this.cacheDir, cacheFileName);
 
-        // Copy file to cache FIRST (synchronously)
-        fs.copyFileSync(sourceFilePath, cacheFilePath);
-
-        console.log(`File saved to cache: ${cacheFilePath}`);
-
-        // Compute checksum and size
-        try {
-            const fileBuffer = fs.readFileSync(cacheFilePath);
-            const checksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-            const stats = fs.statSync(cacheFilePath);
-
-            // Save metadata BEFORE clearing (so clearCache knows which file to keep)
-            this.saveMetadata(issueNumber, checksum, stats.size);
-        } catch (err) {
-            console.error('Error computing checksum for cache file:', err);
-            // Save metadata without checksum
-            this.saveMetadata(issueNumber);
+        // Delete old file if exists
+        if (fs.existsSync(cacheFilePath)) {
+            fs.unlinkSync(cacheFilePath);
+            console.log(`Old file deleted: ${cacheFilePath}`);
         }
-        
-        // Clear old cache files AFTER metadata is saved
-        this.clearCache(issueNumber);
+
+        // Copy new file
+        fs.copyFileSync(sourceFilePath, cacheFilePath);
+        console.log(`✅ File saved: ${cacheFilePath}`);
+
+        // Save simple metadata
+        const stats = fs.statSync(cacheFilePath);
+        this.saveMetadata(issueNumber, null, stats.size);
         
         return cacheFilePath;
     }
@@ -71,7 +63,7 @@ class CacheManager {
         const metadata = {
             issueNumber,
             cachedAt: new Date().toISOString(),
-            fileName: `latest_issue_${issueNumber}.pdf`
+            fileName: `latest_issue.pdf`
         };
 
         if (checksum) metadata.checksum = checksum;
@@ -114,17 +106,11 @@ class CacheManager {
     }
 
     /**
-     * Gets the cached file path
+     * Gets the cached file path - SIMPLE VERSION
      * @returns {string|null} - File path or null if doesn't exist
      */
     getCachedFilePath() {
-        const metadata = this.getMetadata();
-        
-        if (!metadata) {
-            return null;
-        }
-        
-        const filePath = path.join(this.cacheDir, metadata.fileName);
+        const filePath = path.join(this.cacheDir, 'latest_issue.pdf');
         
         if (!fs.existsSync(filePath)) {
             return null;
