@@ -89,10 +89,13 @@ class DownloadScheduler {
             this.logMessage(`Latest issue URL: ${latestIssueUrl}`);
             this.logMessage(`Issue number: ${issueNumber}`);
             
-            // Check if already in cache
-            if (this.cache.isIssueInCache(issueNumber)) {
-                this.logMessage(`Issue ${issueNumber} is already in cache.`);
+            // Check if already in cache AND file actually exists
+            const cachedFilePath = this.cache.getCachedFilePath();
+            if (this.cache.isIssueInCache(issueNumber) && cachedFilePath && fs.existsSync(cachedFilePath)) {
+                this.logMessage(`Issue ${issueNumber} is already in cache at: ${cachedFilePath}`);
                 return;
+            } else if (this.cache.isIssueInCache(issueNumber) && (!cachedFilePath || !fs.existsSync(cachedFilePath))) {
+                this.logMessage(`Metadata exists for issue ${issueNumber} but file is missing. Re-downloading...`);
             }
             
             // New issue detected - clean old downloads
