@@ -34,17 +34,17 @@ class CacheManager {
             throw new Error(`Source file does not exist: ${sourceFilePath}`);
         }
 
-        // Clear previous cache
-        this.clearCache();
-
         // Create cache filename
         const cacheFileName = `latest_issue_${issueNumber}.pdf`;
         const cacheFilePath = path.join(this.cacheDir, cacheFileName);
 
-        // Copy file to cache (synchronously)
+        // Copy file to cache FIRST (synchronously)
         fs.copyFileSync(sourceFilePath, cacheFilePath);
 
         console.log(`File saved to cache: ${cacheFilePath}`);
+        
+        // Clear previous cache AFTER copying
+        this.clearCache();
 
         // Compute checksum and size
         try {
@@ -142,20 +142,26 @@ class CacheManager {
         }
         
         const files = fs.readdirSync(this.cacheDir);
+        const metadata = this.getMetadata();
+        const currentFileName = metadata ? metadata.fileName : null;
         
         for (const file of files) {
-            // Skip metadata.json, logs directory, cache directory, and lost+found
-            if (file === 'metadata.json' || file === 'logs' || file === 'cache' || file === 'lost+found') {
+            // Skip metadata.json, current latest file, and directories
+            if (file === 'metadata.json' || file === currentFileName || file === 'logs' || file === 'cache' || file === 'lost+found') {
                 continue;
             }
             
             const filePath = path.join(this.cacheDir, file);
             
             // Only delete files, not directories
-            const stats = fs.statSync(filePath);
-            if (stats.isFile()) {
-                fs.unlinkSync(filePath);
-                console.log(`File removed from cache: ${filePath}`);
+            try {
+                const stats = fs.statSync(filePath);
+                if (stats.isFile()) {
+                    fs.unlinkSync(filePath);
+                    console.log(`Old file removed from cache: ${filePath}`);
+                }
+            } catch (err) {
+                console.error(`Error removing file ${filePath}:`, err.message);
             }
         }
     }
